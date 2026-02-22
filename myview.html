@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YouTube Queue + Multi-View</title>
+    <style>
+      :root {
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
+        --radius: 16px;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji",
+          "Segoe UI Emoji";
+        color: var(--text);
+        background: var(--bg);
+      }
+      .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+      header h1 { margin: 0 0 6px 0; font-size: 22px; letter-spacing: -0.02em; }
+      header p { margin: 0 0 18px 0; color: var(--muted); font-size: 14px; line-height: 1.4; }
+
+      .banner {
+        display: none;
+        margin: 0 0 14px 0;
+        padding: 12px 14px;
+        border: 1px solid #f59e0b;
+        background: #fffbeb;
+        border-radius: 14px;
+        color: #7c2d12;
+        box-shadow: var(--shadow);
+      }
+      .banner code { background: rgba(124,45,18,0.08); padding: 2px 6px; border-radius: 10px; }
+
+      .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+      @media (min-width: 980px) { .grid { grid-template-columns: 420px 1fr; } }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 14px;
+      }
+
+      .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+
+      .toggle {
+        display: inline-flex;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 4px;
+        gap: 4px;
+      }
+      .toggle button {
+        border: 0;
+        background: transparent;
+        padding: 8px 12px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 13px;
+        color: #334155;
+      }
+      .toggle button.active { background: #0b1220; color: white; }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: #f1f5f9;
+        border: 1px solid var(--border);
+        padding: 6px 10px;
+        font-size: 12px;
+        color: #334155;
+        gap: 8px;
+      }
+
+      label.title { display: block; font-size: 13px; font-weight: 800; margin: 12px 0 6px; }
+      textarea {
+        width: 100%;
+        min-height: 210px;
+        resize: vertical;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        padding: 10px 12px;
+        font-size: 13px;
+        outline: none;
+      }
+      textarea:focus { box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.25); }
+
+      .checks { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; color: #334155; font-size: 13px; }
+      .checks label { display: inline-flex; gap: 8px; align-items: center; }
+
+      .buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+      button.btn {
+        border: 1px solid var(--border);
+        background: #fff;
+        border-radius: 14px;
+        padding: 10px 12px;
+        cursor: pointer;
+        font-weight: 800;
+        font-size: 13px;
+      }
+      button.btn.primary { background: #0b1220; color: white; border-color: #0b1220; }
+      button.btn.danger { background: #dc2626; color: white; border-color: #dc2626; }
+      button.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+      .queue { margin-top: 12px; display: grid; gap: 8px; }
+      .queue-item {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 10px 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+      .queue-item.active { border-color: #0b1220; background: #f8fafc; }
+      .queue-item .meta { min-width: 0; }
+      .queue-item .id {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+        color: #334155;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .queue-item .link { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .queue-item .actions { display: inline-flex; gap: 8px; }
+      .queue-item .actions button {
+        border: 1px solid var(--border);
+        background: #fff;
+        border-radius: 12px;
+        padding: 7px 10px;
+        cursor: pointer;
+        font-weight: 800;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .player-header h2 { margin: 0; font-size: 16px; letter-spacing: -0.01em; }
+      .player-header p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
+
+      .aspect-video {
+        position: relative;
+        width: 100%;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #000;
+        border: 1px solid #0b1220;
+        margin-top: 12px;
+      }
+      .aspect-video::before { content: ""; display: block; padding-top: 56.25%; }
+      .aspect-video > * { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+      .grid-videos { margin-top: 12px; display: grid; gap: 12px; grid-template-columns: 1fr; }
+      @media (min-width: 720px) { .grid-videos { grid-template-columns: 1fr 1fr; } }
+
+      .video-card { border-radius: 16px; overflow: hidden; border: 1px solid var(--border); background: #000; }
+      .video-card .meta { background: #fff; padding: 10px 12px; border-top: 1px solid var(--border); }
+
+      .footnote { margin-top: 10px; font-size: 12px; color: var(--muted); }
+      a { color: inherit; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="fileBanner" class="banner">
+        You opened this page via <code>file://</code>. YouTube often blocks embedded playback from local files.
+        <br/><br/>
+        Run a tiny local server, then open <code>http://localhost:8000/...</code> instead:
+        <br/>
+        <code>python -m http.server 8000</code>
+      </div>
+
+      <header>
+        <h1>YouTube Queue + Multi-View</h1>
+        <p>
+          Paste YouTube links (one per line). Play continuously (auto-advance) or show all videos at once.
+          Autoplay is often restricted—muted playback + clicking <b>Play</b> works best.
+        </p>
+      </header>
+
+      <div class="grid">
+        <!-- Left: Controls -->
+        <div class="card">
+          <div class="row">
+            <div class="toggle" role="tablist" aria-label="Mode">
+              <button id="modeSequential" class="active" type="button">Continuous (one-by-one)</button>
+              <button id="modeSimul" type="button">All at once</button>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <span class="pill"><span id="parsedCount">0</span> parsed</span>
+              <span class="pill" id="unrecognizedPill" style="display:none;">
+                <span id="unrecognizedCount">0</span> unrecognized
+              </span>
+            </div>
+          </div>
+
+          <label class="title" for="links">YouTube links (one per line)</label>
+          <textarea
+            id="links"
+            placeholder="https://www.youtube.com/watch?v=...\nhttps://youtu.be/...\n..."
+          ></textarea>
+
+          <div class="checks">
+            <label><input id="mute" type="checkbox" checked /> Mute (recommended)</label>
+            <label><input id="autostart" type="checkbox" /> Autostart (may be blocked)</label>
+          </div>
+
+          <div class="buttons">
+            <button id="playBtn" class="btn primary" type="button" disabled>Play</button>
+            <button id="pauseBtn" class="btn" type="button">Pause</button>
+            <button id="nextBtn" class="btn" type="button" disabled>Next</button>
+            <button id="clearBtn" class="btn danger" type="button">Clear</button>
+          </div>
+
+          <div class="footnote">
+            Tip: For most browsers, autoplay with sound is blocked. Keep <b>Mute</b> on and click <b>Play</b> once.
+          </div>
+
+          <div class="card" style="margin-top: 14px; box-shadow:none;">
+            <div class="row" style="justify-content: space-between;">
+              <div style="font-weight: 900; font-size: 13px;">Parsed queue</div>
+              <span class="pill">Now: <span id="nowIndex">—</span></span>
+            </div>
+            <div id="queue" class="queue" style="margin-top: 10px;"></div>
+            <div id="queueEmpty" class="footnote" style="margin-top: 10px;">
+              No valid YouTube links detected yet.
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Player area -->
+        <div class="card">
+          <div class="row player-header">
+            <div>
+              <h2 id="playerTitle">Continuous play</h2>
+              <p id="playerDesc">Ends → auto-advances to the next video (wraps around).</p>
+            </div>
+            <span class="pill" id="rightPill">—</span>
+          </div>
+
+          <!-- Sequential player -->
+          <div id="sequentialWrap">
+            <div class="aspect-video">
+              <div id="yt-player"></div>
+            </div>
+            <div id="seqHint" class="footnote" style="display:none;">
+              Add some links on the left to start.
+            </div>
+          </div>
+
+          <!-- Simultaneous grid -->
+          <div id="simulWrap" style="display:none;">
+            <div id="grid" class="grid-videos"></div>
+            <div id="simulHint" class="footnote" style="display:none;">
+              Add some links on the left to start.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- YouTube IFrame API (for sequential mode) -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+      // Show banner if opened via file://
+      if (location.protocol === "file:") {
+        document.getElementById("fileBanner").style.display = "block";
+      }
+
+      // Use origin when available (helps YouTube allow playback on localhost etc.)
+      const SAFE_ORIGIN = (location.origin && location.origin !== "null") ? location.origin : "";
+
+      function extractYouTubeId(input) {
+        if (!input) return null;
+        const s = String(input).trim();
+        if (!s) return null;
+        if (/^[a-zA-Z0-9_-]{11}$/.test(s)) return s;
+
+        try {
+          const url = new URL(s);
+          const host = url.hostname.replace(/^www\./, "");
+
+          if (host === "youtu.be") {
+            const id = url.pathname.split("/").filter(Boolean)[0];
+            return /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
+          }
+
+          if (host.endsWith("youtube.com")) {
+            const v = url.searchParams.get("v");
+            if (v && /^[a-zA-Z0-9_-]{11}$/.test(v)) return v;
+
+            const parts = url.pathname.split("/").filter(Boolean);
+            const shortsIdx = parts.indexOf("shorts");
+            if (shortsIdx !== -1 && parts[shortsIdx + 1]) {
+              const id = parts[shortsIdx + 1];
+              return /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
+            }
+            const embedIdx = parts.indexOf("embed");
+            if (embedIdx !== -1 && parts[embedIdx + 1]) {
+              const id = parts[embedIdx + 1];
+              return /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
+            }
+          }
+        } catch {}
+
+        const m = s.match(/(?:v=|\/|\b)([a-zA-Z0-9_-]{11})(?:\b|\?|&|$)/);
+        return m ? m[1] : null;
+      }
+
+      function dedupe(arr) {
+        const seen = new Set();
+        const out = [];
+        for (const x of arr) {
+          if (!x) continue;
+          if (seen.has(x)) continue;
+          seen.add(x);
+          out.push(x);
+        }
+        return out;
+      }
+
+      const state = {
+        mode: "sequential",
+        ids: [],
+        rawLines: [],
+        invalidCount: 0,
+        nowIndex: 0,
+        mute: true,
+        autostart: false,
+        player: null,
+        ytReady: false,
+      };
+
+      const els = {
+        links: document.getElementById("links"),
+        parsedCount: document.getElementById("parsedCount"),
+        unrecognizedPill: document.getElementById("unrecognizedPill"),
+        unrecognizedCount: document.getElementById("unrecognizedCount"),
+        queue: document.getElementById("queue"),
+        queueEmpty: document.getElementById("queueEmpty"),
+        nowIndex: document.getElementById("nowIndex"),
+
+        modeSequential: document.getElementById("modeSequential"),
+        modeSimul: document.getElementById("modeSimul"),
+
+        mute: document.getElementById("mute"),
+        autostart: document.getElementById("autostart"),
+
+        playBtn: document.getElementById("playBtn"),
+        pauseBtn: document.getElementById("pauseBtn"),
+        nextBtn: document.getElementById("nextBtn"),
+        clearBtn: document.getElementById("clearBtn"),
+
+        playerTitle: document.getElementById("playerTitle"),
+        playerDesc: document.getElementById("playerDesc"),
+        rightPill: document.getElementById("rightPill"),
+
+        sequentialWrap: document.getElementById("sequentialWrap"),
+        simulWrap: document.getElementById("simulWrap"),
+        grid: document.getElementById("grid"),
+        seqHint: document.getElementById("seqHint"),
+        simulHint: document.getElementById("simulHint"),
+      };
+
+      // Seed example
+      els.links.value =
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ\nhttps://youtu.be/9bZkp7q19f0\n";
+
+      function onYouTubeIframeAPIReady() {
+        state.ytReady = true;
+        ensurePlayer();
+      }
+      window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+
+      function ensurePlayer() {
+        if (state.mode !== "sequential") return;
+        if (!state.ytReady) return;
+
+        const currentId = state.ids[state.nowIndex] || null;
+
+        if (!currentId) {
+          destroyPlayer();
+          return;
+        }
+
+        if (state.player && typeof state.player.loadVideoById === "function") {
+          try {
+            state.player.loadVideoById({ videoId: currentId, startSeconds: 0 });
+            syncMute();
+            if (state.autostart) state.player.playVideo();
+          } catch {}
+          return;
+        }
+
+        try {
+          const vars = {
+            autoplay: 0,
+            playsinline: 1,
+            rel: 0,
+            modestbranding: 1,
+          };
+          // IMPORTANT: pass origin when available (localhost etc.)
+          if (SAFE_ORIGIN) vars.origin = SAFE_ORIGIN;
+
+          state.player = new YT.Player("yt-player", {
+            width: "100%",
+            height: "100%",
+            videoId: currentId,
+            playerVars: vars,
+            events: {
+              onReady: (e) => {
+                syncMute();
+                if (state.autostart) {
+                  try { e.target.playVideo(); } catch {}
+                }
+              },
+              onStateChange: (e) => {
+                if (e.data === 0) nextVideo(true);
+              },
+            },
+          });
+        } catch (err) {
+          console.warn("Failed to create YouTube player:", err);
+        }
+      }
+
+      function destroyPlayer() {
+        if (state.player && typeof state.player.destroy === "function") {
+          try { state.player.destroy(); } catch {}
+        }
+        state.player = null;
+
+        const host = document.getElementById("yt-player");
+        if (!host) {
+          const wrap = document.querySelector("#sequentialWrap .aspect-video");
+          const d = document.createElement("div");
+          d.id = "yt-player";
+          wrap.appendChild(d);
+        }
+      }
+
+      function syncMute() {
+        const p = state.player;
+        if (!p) return;
+        try {
+          if (state.mute) p.mute();
+          else p.unMute();
+        } catch {}
+      }
+
+      function renderGrid() {
+        els.grid.innerHTML = "";
+        if (state.ids.length === 0) {
+          els.simulHint.style.display = "block";
+          return;
+        }
+        els.simulHint.style.display = "none";
+
+        const autoplay = state.autostart ? 1 : 0;
+        const mute = state.mute ? 1 : 0;
+        const originParam = SAFE_ORIGIN ? `&origin=${encodeURIComponent(SAFE_ORIGIN)}` : "";
+
+        for (const id of state.ids) {
+          const card = document.createElement("div");
+          card.className = "video-card";
+
+          const aspect = document.createElement("div");
+          aspect.className = "aspect-video";
+
+          const iframe = document.createElement("iframe");
+          iframe.src = `https://www.youtube.com/embed/${id}?autoplay=${autoplay}&mute=${mute}&playsinline=1&rel=0&modestbranding=1${originParam}`;
+          iframe.title = `YouTube ${id}`;
+          iframe.allow =
+            "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+          iframe.allowFullscreen = true;
+          iframe.referrerPolicy = "origin";
+
+          aspect.appendChild(iframe);
+
+          const meta = document.createElement("div");
+          meta.className = "meta";
+
+          const idLine = document.createElement("div");
+          idLine.className = "id";
+          idLine.textContent = id;
+
+          const linkLine = document.createElement("div");
+          linkLine.className = "link";
+          linkLine.innerHTML = `<a href="https://youtu.be/${id}" target="_blank" rel="noreferrer">https://youtu.be/${id}</a>`;
+
+          meta.appendChild(idLine);
+          meta.appendChild(linkLine);
+
+          card.appendChild(aspect);
+          card.appendChild(meta);
+
+          els.grid.appendChild(card);
+        }
+      }
+
+      function render() {
+        els.parsedCount.textContent = String(state.ids.length);
+        els.unrecognizedCount.textContent = String(state.invalidCount);
+        els.unrecognizedPill.style.display = state.invalidCount > 0 ? "inline-flex" : "none";
+
+        els.playBtn.disabled = state.ids.length === 0;
+        els.nextBtn.disabled = state.ids.length === 0;
+
+        els.queue.innerHTML = "";
+        if (state.ids.length === 0) {
+          els.queueEmpty.style.display = "block";
+          els.nowIndex.textContent = "—";
+        } else {
+          els.queueEmpty.style.display = "none";
+          els.nowIndex.textContent = state.mode === "sequential"
+            ? `${state.nowIndex + 1}/${state.ids.length}`
+            : "—";
+        }
+
+        state.ids.forEach((id, i) => {
+          const item = document.createElement("div");
+          item.className = "queue-item" + (state.mode === "sequential" && i === state.nowIndex ? " active" : "");
+
+          const meta = document.createElement("div");
+          meta.className = "meta";
+
+          const idLine = document.createElement("div");
+          idLine.className = "id";
+          idLine.textContent = id;
+
+          const linkLine = document.createElement("div");
+          linkLine.className = "link";
+          linkLine.innerHTML = `<a href="https://youtu.be/${id}" target="_blank" rel="noreferrer">https://youtu.be/${id}</a>`;
+
+          meta.appendChild(idLine);
+          meta.appendChild(linkLine);
+
+          const actions = document.createElement("div");
+          actions.className = "actions";
+
+          if (state.mode === "sequential") {
+            const playHere = document.createElement("button");
+            playHere.textContent = "Play here";
+            playHere.onclick = () => {
+              state.nowIndex = i;
+              ensurePlayer();
+              render();
+              if (state.player && typeof state.player.playVideo === "function") {
+                try { state.player.playVideo(); } catch {}
+              }
+            };
+            actions.appendChild(playHere);
+          }
+
+          const remove = document.createElement("button");
+          remove.textContent = "Remove";
+          remove.onclick = () => removeId(id);
+          actions.appendChild(remove);
+
+          item.appendChild(meta);
+          item.appendChild(actions);
+          els.queue.appendChild(item);
+        });
+
+        const seq = state.mode === "sequential";
+        els.modeSequential.classList.toggle("active", seq);
+        els.modeSimul.classList.toggle("active", !seq);
+
+        if (seq) {
+          els.playerTitle.textContent = "Continuous play";
+          els.playerDesc.textContent = "Ends → auto-advances to the next video (wraps around).";
+          els.rightPill.textContent = state.ids.length ? `Now: ${state.nowIndex + 1}/${state.ids.length}` : "—";
+          els.sequentialWrap.style.display = "block";
+          els.simulWrap.style.display = "none";
+          els.seqHint.style.display = state.ids.length === 0 ? "block" : "none";
+        } else {
+          els.playerTitle.textContent = "All at once";
+          els.playerDesc.textContent = "Shows every video in a grid (scroll). Autoplay may be limited by the browser.";
+          els.rightPill.textContent = state.ids.length ? `${state.ids.length} videos` : "—";
+          els.sequentialWrap.style.display = "none";
+          els.simulWrap.style.display = "block";
+          renderGrid();
+        }
+      }
+
+      function parseInput() {
+        const lines = els.links.value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+        const parsed = lines.map(extractYouTubeId);
+        state.invalidCount = parsed.filter((x) => !x).length;
+        state.ids = dedupe(parsed.filter(Boolean));
+        state.rawLines = lines;
+
+        if (state.nowIndex >= state.ids.length) state.nowIndex = 0;
+
+        if (state.mode === "sequential") ensurePlayer();
+        render();
+      }
+
+      function removeId(id) {
+        const kept = state.rawLines.filter((line) => extractYouTubeId(line) !== id);
+        els.links.value = kept.join("\n") + (kept.length ? "\n" : "");
+        parseInput();
+      }
+
+      function nextVideo(fromEnded = false) {
+        if (state.ids.length === 0) return;
+        state.nowIndex = (state.nowIndex + 1) % state.ids.length;
+        ensurePlayer();
+        render();
+        if (fromEnded && state.player && typeof state.player.playVideo === "function") {
+          try { state.player.playVideo(); } catch {}
+        }
+      }
+
+      function setMode(mode) {
+        if (state.mode === mode) return;
+        state.mode = mode;
+
+        if (state.mode !== "sequential") destroyPlayer();
+        else ensurePlayer();
+
+        render();
+      }
+
+      els.links.addEventListener("input", parseInput);
+
+      els.mute.addEventListener("change", () => {
+        state.mute = els.mute.checked;
+        syncMute();
+        render();
+      });
+
+      els.autostart.addEventListener("change", () => {
+        state.autostart = els.autostart.checked;
+        render();
+      });
+
+      els.playBtn.addEventListener("click", () => {
+        if (state.mode === "sequential") {
+          if (state.player && typeof state.player.playVideo === "function") {
+            try { state.player.playVideo(); } catch {}
+          }
+        } else {
+          render(); // rebuilds grid with current autoplay/mute settings
+        }
+      });
+
+      els.pauseBtn.addEventListener("click", () => {
+        if (state.mode === "sequential") {
+          if (state.player && typeof state.player.pauseVideo === "function") {
+            try { state.player.pauseVideo(); } catch {}
+          }
+        }
+      });
+
+      els.nextBtn.addEventListener("click", () => {
+        if (state.mode === "sequential") nextVideo(false);
+      });
+
+      els.clearBtn.addEventListener("click", () => {
+        els.links.value = "";
+        state.ids = [];
+        state.rawLines = [];
+        state.invalidCount = 0;
+        state.nowIndex = 0;
+        destroyPlayer();
+        render();
+      });
+
+      els.modeSequential.addEventListener("click", () => setMode("sequential"));
+      els.modeSimul.addEventListener("click", () => setMode("simul"));
+
+      // Init
+      state.mute = els.mute.checked;
+      state.autostart = els.autostart.checked;
+      parseInput();
+      render();
+    </script>
+  </body>
+</html>
