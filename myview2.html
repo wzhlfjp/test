@@ -379,6 +379,22 @@
       els.links.value =
         "https://www.youtube.com/watch?v=xG9ga5YOcgQ\nhttps://www.youtube.com/watch?v=REDOzRR6YXk\nhttps://www.youtube.com/watch?v=s-IhL-FWWtw\nhttps://www.youtube.com/watch?v=YHZmkm12t7Y\nhttps://www.youtube.com/watch?v=EQEHcEXfSsY\nhttps://www.youtube.com/watch?v=3oGKsR3VgJ0\nhttps://www.youtube.com/watch?v=JQmsTMVuG9E\nhttps://www.youtube.com/watch?v=3ASWVl1MzwY\nhttps://www.youtube.com/watch?v=UgI4nHINiJY\nhttps://www.youtube.com/watch?v=QK6XtZBkH0g\nhttps://www.youtube.com/watch?v=aUfAvRAiYsw\nhttps://www.youtube.com/watch?v=CguxLCA7L6U\n";
 
+      const my_links = [
+        "https://www.youtube.com/watch?v=xG9ga5YOcgQ",
+        "https://www.youtube.com/watch?v=REDOzRR6YXk",
+        "https://www.youtube.com/watch?v=s-IhL-FWWtw",
+        "https://www.youtube.com/watch?v=YHZmkm12t7Y",
+        "https://www.youtube.com/watch?v=EQEHcEXfSsY",
+        "https://www.youtube.com/watch?v=3oGKsR3VgJ0",
+        "https://www.youtube.com/watch?v=JQmsTMVuG9E",
+        "https://www.youtube.com/watch?v=3ASWVl1MzwY",
+        "https://www.youtube.com/watch?v=UgI4nHINiJY",
+        "https://www.youtube.com/watch?v=QK6XtZBkH0g",
+        "https://www.youtube.com/watch?v=aUfAvRAiYsw",
+        "https://www.youtube.com/watch?v=CguxLCA7L6U"
+      ];
+      els.links.value = my_links.join("\n");
+      
       function onYouTubeIframeAPIReady() {
         state.ytReady = true;
         ensurePlayer();
